@@ -1,6 +1,6 @@
 
 <center><h2>Exploratory Data Analysis Spring 2017 Project</h2></center>
-<h5>Report of the analysis can be found in [here](http://github.com/Dharamsitejas/SpringEDAV2017/blob/master/EDAV_Final_Report_Descartes.pdf) </h5>
+<h5>Report of the analysis can be found in [here] (http://github.com/Dharamsitejas/SpringEDAV2017/blob/master/EDAV_Final_Report_Descartes.pdf) </h5>
 <h4> Requirements</h4>
 <ol>
 <li> Language/ Software : R version 3.3.3, R studio version 3.3.2 and R Notebook
