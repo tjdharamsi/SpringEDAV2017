@@ -1,0 +1,275 @@
+---
+title: "R Notebook"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+library(viridis)
+library(ggmap)
+library(ggmosaic)
+```
+
+
+```{r, results='hide'}
+SFPD <- read_csv("SFPD_Incidents_-_from_1_January_2003.csv", 
+ col_types = cols(Date = col_date(format = "%m/%d/%Y"), Time= col_character()))
+SFPD <- SFPD [order(SFPD$Date),]
+SFPD <- SFPD %>% filter( Category != 'OTHER OFFENSES' )
+SFPD_1 <- SFPD %>% mutate(Year = (format(as.Date(Date, format="%d/%m/%Y"),"%Y")))
+
+SFPD <- SFPD_1 %>% filter( Year != 2017 )
+SFPD_top7 <- SFPD %>% filter(Category == 'LARCENY/THEFT'| Category == 'NON-CRIMINAL'| Category == 'ASSAULT'|  Category == 'VEHICLE THEFT'|  Category == 'DRUG/NARCOTIC'| Category =='VANDALISM'| Category == 'WARRANTS'| Category == 'BURGLARY'| Category =='SUSPICIOUS OCC'| Category =='MISSING PERSON' | Category =='ROBBERY' | Category =='FRAUD' )
+
+SFPD_vehicle_theft <- SFPD_top7 %>% filter(Category == 'VEHICLE THEFT')
+
+SFPD_vehicle_theft <- SFPD_vehicle_theft %>% mutate(Month = (format(as.Date(Date, format="%d/%m/%Y"),"%m")))
+SFPD_vehicle_theft <- SFPD_vehicle_theft %>% mutate(date= (format(as.Date(Date, format="%d/%m/%Y"),"%d")))
+SFPD_vehicle_theft <- SFPD_vehicle_theft %>% mutate(Hour= format(as.POSIXct(Time,format="%H:%M"),"%H"))
+SFPD_VT_oct_ingleside <- SFPD_vehicle_theft %>% filter(Month == 10 & PdDistrict== 'INGLESIDE')
+
+SFPD_VT_oct_ingleside <- SFPD_VT_oct_ingleside %>% mutate(date= (format(as.Date(Date, format="%d/%m/%Y"),"%d")))
+
+
+```
+
+
+
+```{r}
+SFPD_stolen_vehicle <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN AUTOMOBILE" | Descript=="STOLEN TRAILER" |Descript=="STOLEN TRUCK"|Descript=="STOLEN BUS" |Descript=="STOLEN MISCELLANEOUS VEHICLE" |Descript=="STOLEN MOTORCYCLE")
+
+SFPD_recovered_vehicle <- SFPD_vehicle_theft %>% filter(Descript=="VEHICLE, RECOVERED, BUS" |Descript=="VEHICLE, RECOVERED, CAMPER-HOUSE CAR-MOTOR HOME" |Descript=="RECOVERED VEHICLE - STOLEN OUTSIDE SF" | Descript=="VEHICLE, RECOVERED, MOBILE HOME-TRAILER"|Descript=="VEHICLE, RECOVERED, AUTO" |Descript=="VEHICLE, RECOVERED, MOTORCYCLE" |Descript=="VEHICLE, RECOVERED, OTHER VEHICLE")
+
+SFPD_stolen_outside<- SFPD_vehicle_theft %>% filter(Descript== "RECOVERED VEHICLE - STOLEN OUTSIDE SF" )
+SFPD_tampering <- SFPD_vehicle_theft %>% filter(Descript=="TAMPERING WITH A VEHICLE" )
+
+```
+
+```{r}
+SFPD_stolen_auto <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN AUTOMOBILE"|Descript=="VEHICLE, RECOVERED, AUTO"  )
+SFPD_stolen_truck <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN TRUCK"|Descript=="VEHICLE, RECOVERED, BUS"  )
+
+SFPD_stolen_motorcycle <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN MOTORCYCLE"|Descript=="VEHICLE, RECOVERED, MOTORCYCLE"  )
+
+SFPD_stolen_trailer <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN TRAILER"|Descript=="VEHICLE, RECOVERED, MOBILE HOME-TRAILER" )
+
+SFPD_stolen_other <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN MOTORCYCLE"| Descript=="STOLEN MOTORCYCLE")
+
+SFPD_stolen_bus <- SFPD_vehicle_theft %>% filter(Descript=="STOLEN BUS" | Descript=="VEHICLE, RECOVERED, BUS" )
+
+SFPD_stolen_auto$vehicle_type= 'auto' 
+SFPD_stolen_bus$vehicle_type='bus'
+SFPD_stolen_other$vehicle_type='other'
+SFPD_stolen_motorcycle$vehicle_type='motorcycle'
+SFPD_stolen_trailer$vehicle_type='trailer'
+SFPD_stolen_truck$vehicle_type='truck'
+
+SFPD_type_vehicle <- rbind(SFPD_stolen_auto, SFPD_stolen_bus, SFPD_stolen_other, SFPD_stolen_motorcycle, SFPD_stolen_trailer, SFPD_stolen_truck)
+  
+  
+
+SFPD_recovered_vehicle <- SFPD_vehicle_theft %>% filter(Descript=="VEHICLE, RECOVERED, BUS" |Descript=="VEHICLE, RECOVERED, CAMPER-HOUSE CAR-MOTOR HOME" |Descript=="RECOVERED VEHICLE - STOLEN OUTSIDE SF" | Descript=="VEHICLE, RECOVERED, MOBILE HOME-TRAILER"|Descript=="VEHICLE, RECOVERED, AUTO" |Descript=="VEHICLE, RECOVERED, MOTORCYCLE" |Descript=="VEHICLE, RECOVERED, OTHER VEHICLE")
+```
+
+
+```{r}
+SFPD_stolen_vehicle$Recovery= 'No'
+SFPD_recovered_vehicle$Recovery='Yes'
+
+SFPD_recovery_data<- rbind(SFPD_stolen_vehicle,SFPD_recovered_vehicle)
+```
+
+##Fig 3.1 and Fig 3.2
+
+```{r}
+
+library(VIM)
+a<-aggr(SFPD, bars=TRUE, delimiter = NULL, plot = TRUE)
+summary(a)
+matrixplot(SFPD,delimiter = NULL, fixup=FALSE,col = c("blue", "green"))
+head(scorecard)
+```
+
+
+## Fig 3.3
+
+```{r,  fig.height=8, fig.width=15}
+#reorder(Category, Category ,function(x)+length(x) )
+p <- ggplot(SFPD_1 , aes( group=reorder(Category, Category ,function(x)+length(x) ),x = Year, colour= reorder(Category, Category ,function(x)+length(x) ))) +geom_path(stat ='count')  +xlab('Year')+ ylab('Trend of Crime Reports') + ggtitle('Count of Crime  reports over the years including 2017')+scale_fill_discrete(name = "Category")
+
+
+p 
+```
+
+##fig 3.4
+
+```{r,  fig.height=8, fig.width=10}
+p <- ggplot(SFPD, aes( group=reorder(Resolution, Resolution ,function(x)+length(x) ), x= Resolution)) +geom_bar(stat ='count')  +xlab('Resolution')+theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+p
+```
+
+
+```{r}
+SFPD_2 <- SFPD %>% mutate(Month = (format(as.Date(Date, format="%d/%m/%Y"),"%m")))
+SFPD_2 <- SFPD_2 %>% mutate(date= (format(as.Date(Date, format="%d/%m/%Y"),"%d")))
+```
+
+
+##fig 3.5
+
+```{r,  fig.height=8, fig.width=20}
+p <- ggplot(SFPD_2, aes(  x= date)) +geom_bar(stat ='count')  +xlab('Dates') +facet_wrap(~Month)
+p
+```
+
+
+
+## Fig 3.6
+```{r, fig.height=10, fig.width=20}
+mapgilbert <- get_map(location = c(lon = mean(SFPD$X), lat = mean(SFPD$Y)), zoom = 12,
+                      maptype = "roadmap", scale = 2)
+
+# plotting the map with some points on it
+ggmap(mapgilbert) +
+  geom_point(data = SFPD, aes(x = X, y = Y, fill = "red", alpha = 0.8, colour= PdDistrict), size = 0.5, shape = 21 )  + geom_point(data = SFPD_vehicle_theft, aes(x = X, y = Y, alpha = 0.8, colour= PdDistrict), size = 1, shape = 21 )+
+  guides(fill=FALSE, alpha=FALSE, size=FALSE)
+```
+
+##The plots below are in order as are in the Vehicle theft section.
+
+```{r, fig.height=8, fig.width=15}
+#reorder(Category, Category ,function(x)+length(x) )
+p <- ggplot(SFPD_vehicle_theft , aes( group=reorder(Category, Category ,function(x)+length(x) ),x = Year)) +geom_path(stat ='count')  +xlab('Year')+ ylab('Trend of Vehicle Theft') + ggtitle('Count of vehicle theft over the years')+scale_fill_discrete(name = "Category")
+
+
+p 
+```
+```{r, fig.height=10, fig.width=15}
+p <- ggplot(SFPD_vehicle_theft , aes(group= Category , x= Month , )) +geom_line(stat='count') +xlab('Month') +facet_wrap(~Year)+ylab("Count of vehicle theft ")
+p 
+```
+
+```{r, fig.height=8, fig.width=15}
+#reorder(Category, Category ,function(x)+length(x) )
+p <- ggplot(SFPD_vehicle_theft , aes( group=reorder(Category, Category ,function(x)+length(x) ),x = Month)) +geom_path(stat ='count')  +xlab('Month of Year')+ylab("Count of vehicle theft")+ ggtitle("Trend of vehicle theft for different months")
+p 
+```
+
+
+
+
+
+
+```{r, fig.height=10, fig.width=15}
+day <- factor(SFPD_vehicle_theft$DayOfWeek, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+p <- ggplot(SFPD_vehicle_theft, aes(group= day , x= PdDistrict, fill=day)) +geom_bar(stat='count', position="dodge") +xlab('Police department district')+scale_fill_viridis(name="Day of Week", discrete = T) 
+p
+
+```
+
+
+```{r, fig.height=8, fig.width=12}
+p <- ggplot(SFPD_vehicle_theft , aes( group= Category , x= Hour)) +geom_path(stat='count')  +xlab('Hour of Day')+ylab("Count of Vehicle theft reports")
+p
+
+```
+
+```{r, fig.height=8, fig.width=15}
+p <- ggplot(SFPD_vehicle_theft , aes( x = reorder(Descript, Descript, function(x)+length(x)))) +geom_bar(stat ='count')  +xlab('Description of Vehicle theft in report') +theme(axis.text.x = element_text(angle = 90, hjust = 1)) +coord_flip() + ylab("Count of Vehicle theft")+ ggtitle("Bar plot for description of vehicle theft")
+p 
+```
+
+```{r, fig.height=8, fig.width=13}
+p <- ggplot(SFPD_type_vehicle , aes( group= vehicle_type , x=Year, colour= vehicle_type)) +geom_path(stat='count')  +xlab('Year')+ylab("Count of vehicle theft for different type of vehicles")+scale_color_viridis(name="Vehicle Type", discrete = T)
+p
+```
+
+
+```{r, fig.height=10, fig.width=10}
+p <- ggplot(SFPD_vehicle_theft, aes( group=reorder(Resolution, Resolution ,function(x)+length(x) ), x= Resolution)) +geom_bar(stat ='count')  +xlab('Resolution')+theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+p 
+```
+
+```{r, fig.height=10, fig.width=10}
+ggplot(SFPD_vehicle_theft , aes(x=reorder(PdDistrict, PdDistrict, function(x)+length(x)))) +geom_bar(stat='count')  + xlab('Police department District') + ylab('count of crime')  
+```
+
+
+```{r, fig.height=10, fig.width=20}
+map_SF_stolen_vehicle <- get_map(location = "San Francisco", zoom = 12, maptype = "roadmap", scale = 2)
+p<-ggmap(map_SF_stolen_vehicle) + geom_density2d(data = SFPD_vehicle_theft,
+   aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_vehicle_theft,
+   aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01,
+   bins = 16, geom = "polygon") + scale_fill_viridis() +
+   scale_alpha(range = c(0, 0.3), guide = FALSE) 
+
+p
+```
+
+
+```{r, fig.height=10, fig.width=20}
+map_SF_stolen_vehicle <- get_map(location = "San Francisco", zoom = 12, maptype = "roadmap", scale = 2)
+p<-ggmap(map_SF_stolen_vehicle) + geom_density2d(data = SFPD_recovery_data,
+   aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_recovery_data,
+   aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01,
+   bins = 16, geom = "polygon") + scale_fill_viridis() +
+   scale_alpha(range = c(0, 0.3), guide = FALSE) + facet_grid(~Recovery) 
+
+p
+```
+
+```{r, fig.height=10, fig.width=10}
+map_stolen_outside <- get_map(location = "San Francisco", zoom = 13, maptype = "roadmap", scale = 2)
+p<-ggmap(map_stolen_outside) + geom_density2d(data = SFPD_stolen_outside,
+   aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_stolen_outside,
+   aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01,
+   bins = 16, geom = "polygon") + scale_fill_viridis() +
+   scale_alpha(range = c(0, 0.3), guide = FALSE) +ggtitle("Recovery of Vehicle stolen outside SF")
+p
+```
+
+```{r, fig.height=10, fig.width=10}
+map_tampering <- get_map(location = "San Francisco", zoom = 13, maptype = "roadmap", scale = 2)
+p<-ggmap(map_tampering) + geom_density2d(data = SFPD_tampering,
+   aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_tampering,
+   aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01,
+   bins = 16, geom = "polygon") + scale_fill_viridis() +
+   scale_alpha(range = c(0, 0.3), guide = FALSE)+ ggtitle("Tampering with the Vehicles")
+p
+```
+
+
+
+
+
+
+
+```{r, fig.height=10, fig.width=20}
+map_stolen_outside <- get_map(location = "San Francisco", zoom = 13, maptype = "roadmap", scale = 2)
+p<-ggmap(map_stolen_outside) + geom_density2d(data = SFPD_type_vehicle,
+   aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_type_vehicle,
+   aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01,
+   bins = 16, geom = "polygon") + scale_fill_viridis() +
+   scale_alpha(range = c(0, 0.3), guide = FALSE)+facet_wrap(~vehicle_type)
+p
+```
+
+
+
+
+
+
+
+
+
+
+
