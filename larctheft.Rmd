@@ -1,0 +1,74 @@
+---
+title: "Larceny related crime analysis Analysis SFPD"
+author: "Tejas Dharamsi"
+output:
+  html_notebook: default
+  html_document: default
+---
+```{r results='hide', message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+```
+
+```{r results='hide' ,message=FALSE, warning=FALSE}
+SFPD <- read_csv("SFPD_Incidents_-_from_1_January_2003.csv", 
+ col_types = cols(Date = col_date(format = "%m/%d/%Y"), Time = col_character()))
+
+```
+
+```{r}
+SFPD <- SFPD [order(SFPD$Date),]
+library(tibble)
+SFPD_1 <- SFPD %>% mutate(Year = (format(as.Date(Date, format="%d/%m/%Y"),"%Y")))
+SFPD_1 <- SFPD_1 %>% mutate(Month = (format(as.Date(Date, format="%d/%m/%Y"),"%m")))
+SFPD_1$DayOfWeek <- factor(SFPD_1$DayOfWeek, levels = c("Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"),ordered = TRUE)
+```
+
+```{r}
+theftdata <- SFPD_1 %>% filter(Category=="LARCENY/THEFT") %>% filter(Year!="2017") %>% filter(PdDistrict!="NA")
+ggplot(theftdata)+geom_bar(mapping=aes(DayOfWeek)) + ggtitle("Graph of Larceny/Theft over Day of the Week")
+ggplot(theftdata)+geom_bar(mapping=aes(PdDistrict)) + xlab("District")+ coord_flip()+ggtitle("Larceny/Theft Count in Various PdDistrict")
+temp <- theftdata %>% group_by(PdDistrict,DayOfWeek) %>% summarise(count1=n())
+ggplot(temp)+geom_col(mapping=aes(DayOfWeek,count1)) +ylab("Count") + facet_wrap(~PdDistrict) +coord_flip() +ggtitle("Larceny/Theft on Day of the Week faceted over PdDistrict")
+```
+
+```{r fig.height=5}
+ts <- theftdata %>% group_by(Year) %>% summarise(count1=n())
+ggplot(ts)+geom_col(mapping=aes(Year,count1)) +ylab("Count") +ggtitle("Larceny/Theft over Years")
+ts <- theftdata %>% group_by(Year,PdDistrict) %>% summarise(count1=n())
+ggplot(ts)+geom_col(mapping=aes(Year,count1))+ylab("Count")+xlab("District")  + facet_wrap(~PdDistrict) + coord_flip() +ggtitle("Larceny/Theft over Years facetted over PdDistrict")
+
+```
+
+```{r}
+datedf <- theftdata %>% filter(Year=="2013" | Year=="2014" | Year=="2015" | Year=="2016") %>%  group_by(Date,Year) %>% summarise(count1=n())
+ggplot(datedf, aes(Date, count1)) + geom_line(aes(color=Year)) +ggtitle("Time Series Analysis of Larceny in recent years")
+  
+```
+
+```{r fig.height=5}
+ts <- theftdata %>% group_by(Month,PdDistrict) %>% summarise(count1=n())
+ggplot(ts)+geom_col(mapping=aes(Month,count1))
+ts <- theftdata %>% group_by(Year,Month) %>% summarise(count1=n())
+ggplot(ts)+geom_col(mapping=aes(Month,count1)) +ylab("Count")+ facet_wrap(~Year) + coord_flip() +ggtitle("Larceny/Theft plotted over months in different Year")
+```
+
+```{r fig.height=6, fig.width=10}
+descriptdata <- theftdata %>% group_by(Descript) %>% summarise(count1=n())
+ggplot(descriptdata) + geom_point(mapping = aes(reorder(Descript,count1),count1)) +xlab("Larceny Type") + xlab("Count")  + coord_flip()+ggtitle("Cleveland Dot Plot for Type of Larceny/Theft")
+```
+
+```{r fig.width=5}
+analysis <- theftdata %>% filter(Descript== "GRAND THEFT FROM LOCKED AUTO" | Descript =="PETTY THEFT FROM LOCKED AUTO" )
+
+analysis1 <- analysis %>% group_by(Descript,Year) %>% summarise(count1=n())
+ggplot(analysis1) + geom_path(mapping=aes(Year,count1,group=Descript,color=Descript)) +ylab("Count") + ggtitle("Plot of Auto-Theft from Locked Autos over Years")
+```
+
+```{r fig.width=5}
+analysis <- theftdata %>% filter(Descript== "GRAND THEFT FROM LOCKED AUTO" | Descript =="PETTY THEFT FROM LOCKED AUTO" | Descript =="GRAND THEFT OF PROPERTY" | Descript=="PETTY THEFT OF PROPERTY" | Descript=="GRAND THEFT FROM A BUILDING" | Descript=="PETTY THEFT FROM A BUILDING" | Descript=="GRAND THEFT FROM PERSON" | Descript=="GRAND THEFT PICKPOCKET")
+newdata <- analysis %>% group_by(Descript,PdDistrict) %>%  summarise(count=n())
+ggplot(newdata) + geom_col(mapping = aes(reorder(PdDistrict,count),count)) + facet_wrap(~Descript) +coord_flip() +xlab("PD District") +ggtitle("Count of top types of Larceny in various PdDistrict ")
+```
