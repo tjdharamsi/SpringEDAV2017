@@ -1,0 +1,237 @@
+---
+title: "DRUG related crime analysis Analysis SFPD"
+author: "Vibhuti Mahajan (vm2486)"
+output:
+  html_notebook: default
+  html_document: default
+---
+
+
+
+```{r, results='hide', warning='hide'}
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(readr)
+```
+
+```{r,results='hide', warning='hide'}
+SFPD <- read_csv("~/Desktop/SFPD_Incidents_-_from_1_January_2003.csv", col_types = cols(Date = col_date(format = "%m/%d/%Y"), Time = col_character()))
+
+```
+
+```{r}
+View(SFPD)
+```
+
+```{r}
+SFPD <- SFPD [order(SFPD$Date),]
+SFPD <- SFPD %>% filter(Category != 'OTHER OFFENSES')
+SFPD <- SFPD %>% filter(PdDistrict != 'NA')
+SFPD_1 <- SFPD %>% mutate(Year = (format(as.Date(Date, format="%d/%m/%Y"),"%Y")))
+SFPD_1 <- SFPD_1 %>% mutate(Month = (format(as.Date(Date, format="%d/%m/%Y"),"%m")))
+SFPD_1 <- SFPD_1 %>% mutate(Year_Month = (format(as.Date(Date, format="%d/%m/%Y"),"%Y/%m")))
+SFPD_1 <- SFPD_1 %>% mutate(Hour = format(as.POSIXct(Time,format="%H:%M"),"%H"))
+class(SFPD_1$Hour) = "numeric"
+SFPD_1 <- SFPD_1 %>% filter(Year != 2017)
+```
+
+```{r, fig.height=4, fig.width=5}
+#SFPD_1 <- SFPD %>% mutate(Year = (format(as.Date(Date, format="%d/%m/%Y"),"%Y")))
+p <- ggplot(SFPD_1 , aes( x = Year)) +geom_bar(stat ='count', alpha=0.8)  +xlab('Year') + geom_vline(xintercept = 9, colour ='red', linetype = "dashed") + annotate("text", label = "App Launched", x = 11, y = 125000, color = "red", size= 4.3)
+p + ggtitle('Crime Reportings over the years')
+```
+```{r, fig.height=15, fig.width=15}
+
+#####################
+###### Fig 2.3 ######
+#####################
+p1 <- ggplot(SFPD_1 , aes(x=reorder(Category, Category ,function(x)+length(x) ))) +geom_bar(stat='count') + geom_vline(xintercept = 33, color = 'red', linetype= 'dashed') + annotate("text", x = 35, y = 270000, label = "Major Crimes by Count" , color = 'red', size=7) + coord_flip() + xlab('Crime Category') + theme_grey(16)
+p1 <- p1 + ggtitle('Cumulative Counts of Crimes') 
+p2 <- ggplot(SFPD_1 , aes( group=reorder(Category, Category ,function(x)+length(x) ),x = Year, colour= reorder(Category, Category ,function(x)+length(x) ))) +geom_path(stat ='count')  +xlab('Year')+scale_colour_discrete('Category of Crime') + ggtitle('Crime Trends') + theme(legend.position="bottom") + theme_grey(16)
+#p +scale_color_manual(values=palette(value=rainbow(39))) 
+grid.arrange(p1, p2, ncol=1)
+```
+
+```{r}
+SFPD_2 <- SFPD_1 %>% filter(Category == 'LARCENY/THEFT' |Category == 'NON-CRIMINAL' |Category == 'ASSAULT' |Category == 'VEHICLE THEFT' |Category == 'DRUG/NARCOTIC'  )
+```
+
+```{r}
+#####################
+###### Fig 2.1 ######
+#####################
+library(viridis)
+library(RColorBrewer)
+library(gridExtra)
+p1 <- ggplot(SFPD_2 , aes( group=reorder(Category, Category ,function(x)-length(x) ),x = Year, colour= reorder(Category, Category ,function(x)-length(x) ))) +geom_path(stat ='count')  +xlab('Year')+scale_color_viridis('Category of Crime', discrete = T) + ylim(0,45000) + annotate("text", x = 3, y = 20000, label = "Vehicle Theft Decrease", size=2.5) + annotate("text", x = 8, y = 30000, label = "Larceny and Theft Increase", size=2.5) + annotate("text", x = 7, y = 17500, label = "Non-criminal offences increased", size=2.5)+
+annotate("text", x = 7, y = 15000, label = "and drug crimes decreased", size=2.5)
+
+p1 <- p1 + ggtitle('Major Crimes Through the Years')
+p1
+```
+
+```{r, fig.height=8, fig.width=12}
+library(RColorBrewer)
+p <- ggplot(SFPD_1 , aes( group=reorder(Category, Category ,function(x)+length(x) ),x = Year, colour= reorder(Category, Category ,function(x)+length(x) ))) +geom_path(stat ='count')  +xlab('Year')+scale_colour_discrete('Category of Crime') + ggtitle('Crime Trends') + theme(legend.position="bottom")
+#p +scale_color_manual(values=palette(value=rainbow(39))) 
+p
+```
+
+```{r, fig.height=15, fig.width=10}
+library(ggmap)
+map_SF <- get_map("San Francisco", zoom = 12, maptype = "toner-lite", source = 'stamen')
+p1 <- ggmap(map_SF) + geom_point(data=SFPD_1, aes(x=X, y=Y, color= PdDistrict), alpha=0.03, size=0.01, show.legend = TRUE)+ ggtitle('Crime Report over districts') + theme_grey(15) + guides(col = guide_legend(override.aes = list(size=10)))
+p2 <- ggplot(SFPD_1 , aes(x=Year)) +geom_bar(stat='count')  + xlab('Year') + ylab('count of crime')+ facet_wrap(~PdDistrict) + coord_flip() 
+grid.arrange(p1, p2, ncol=1)
+```
+```{r, fig.height=8, fig.width=8}
+ggplot(SFPD_1 , aes(x=Year)) +geom_bar(stat='count')  + xlab('Year') + ylab('count of crime')+ facet_wrap(~PdDistrict) + coord_flip()
+  #theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r, fig.height=20, fig.width=20}
+
+#####################
+###### Fig 2.2 ######
+#####################
+map_SF <- get_map("San Francisco", zoom = 12, maptype = "toner-lite", source = 'stamen')
+ggmap(map_SF) +   geom_density2d(data = SFPD_1, 
+    aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_1, 
+    aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 30, geom = "polygon") + scale_fill_viridis(direction=-1) + facet_wrap(~Year) +
+    scale_alpha(range = c(0.2, 0.5), guide = FALSE) + ggtitle('Crime Report Density : Are Southern and Mission Districts Unsafe?') +ylab('latitude') + xlab('longitude')+ theme(legend.position="bottom") + theme_grey(25)
+```
+
+```{r}
+SFPD_drugs <- SFPD_1 %>% filter(Category=='DRUG/NARCOTIC')
+
+```
+
+```{r,fig.height=5, fig.width=5}
+p <- ggplot(SFPD_drugs , aes( group=reorder(Category,Category ,function(x)+length(x)),x = Year)) +geom_path(stat ='count')  +xlab('Year') +ylim(0,13000) +ggtitle('Drugs/ Narcotics Based Felony Reported over Time')
+p
+```
+```{r,fig.height=5, fig.width=7}
+#####################
+###### Fig 2.4 ######
+#####################
+
+p <- ggplot(SFPD_2 , aes( group= Year , x= Hour, colour=Year)) +geom_path(stat='count')  +xlab('Hour of the Day') + facet_wrap(~Category) + ggtitle('Are Most Crimes Reported in the Evening?') + theme(legend.position="bottom") +scale_color_viridis(discrete = T, direction = -1) 
+p 
+```
+```{r,fig.height=5, fig.width=8}
+
+#####################
+###### Fig 2.5 ######
+#####################
+p <- ggplot(SFPD_1 , aes( group= Year , x= Month, colour=Year)) +geom_path(stat='count')  +xlab('Month') +  ggtitle('Crime Trends over Months are Similar!') + theme(legend.position="bottom")+ ylim(0,2700) + facet_wrap(~PdDistrict)+scale_color_viridis(discrete = T, direction = -1)
+p 
+```
+
+```{r,fig.height=5, fig.width=8}
+#####################
+###### Fig 2.6 ######
+#####################
+day <- factor(SFPD_1$DayOfWeek, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+p <- ggplot(SFPD_1 , aes(  x= day)) +geom_bar(stat='count')  +xlab('Day of the week') +  ggtitle('Fridays and Saturdays : Most Crime Succeptible Days') + theme(legend.position="bottom") + facet_wrap(~PdDistrict)+scale_color_viridis(discrete = T, direction = -1)+theme(axis.text.x = element_text(angle = 90, hjust = 1))  
+p 
+```
+
+
+```{r,fig.height=10, fig.width=10}
+
+
+p <- ggplot(SFPD_drugs , aes( group= Year , x= Hour, colour=Year)) +geom_path(stat='count')  +xlab('Year') + ggtitle('Time of Drug Based Crime Reportings') 
+p 
+```
+```{r,fig.height=9, fig.width=10}
+p <- ggplot(SFPD_drugs , aes(x=reorder(Descript, Descript ,function(x)+length(x) ))) +geom_bar(stat='count') + coord_flip() + xlab('Drug Felony Type')
+p + ggtitle('Major Contributors: Cocaine, Paraphernalia, Marijuana and Heroin')
+```
+```{r, fig.height=15, fig.width=10}
+day <- factor(SFPD_drugs$DayOfWeek, c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+p1 <- ggplot(SFPD_drugs , aes(x= day)) +geom_bar(stat='count') + facet_wrap(~Year)  +xlab('Day of the week') +  ggtitle('Drug/ Narcotic based Crimes Surge on Wednesdays!') +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+p2 <- ggplot(SFPD_drugs , aes(group = Category, x= Month)) +geom_path(stat='count')  + facet_wrap(~Year) + xlab('Month') +  ggtitle('Drug / Narcotics based crimes Decrease after 2009') 
+grid.arrange(p1, p2, ncol=1)
+```
+
+```{r}
+SFPD_coke <- SFPD_drugs %>% filter(Descript == 'POSSESSION OF BASE/ROCK COCAINE'| Descript=='SALE OF BASE/ROCK COCAINE'|Descript == 'POSSESSION OF BASE/ROCK COCAINE FOR SALE' )
+SFPD_coke$Type = 'cocaine'
+#View(SFPD_coke)
+
+
+SFPD_heroin <- SFPD_drugs %>% filter(Descript == 'POSSESSION OF HEROIN'| Descript=='SALE OF HEROIN'|Descript == 'POSSESSION OF HEROIN FOR SALES' )
+SFPD_heroin$Type = 'heroin'
+#View(SFPD_heroin)
+
+SFPD_mari <- SFPD_drugs %>% filter(Descript == 'POSSESSION OF MARIJUANA'| Descript=='SALE OF MARIJUANA'|Descript == 'POSSESSION OF MARIJUANA FOR SALES' )
+SFPD_mari$Type = 'marijuana'
+#View(SFPD_mari)
+SFPD_np <- SFPD_drugs %>% filter(Descript == 'POSSESSION OF NARCOTICS PARAPHERNALIA'| Descript=='SALE OF NARCOTICS PARAPHERNALIA'|Descript == 'POSSESSION OF NARCOTICS PARAPHERNALIA FOR SALES' )
+SFPD_np$Type = 'narcotics'
+SFPD_drugs_subset = rbind(SFPD_coke, SFPD_np, SFPD_mari, SFPD_heroin)
+#View(SFPD_drugs_subset)
+```
+
+
+```{r, fig.height=5, fig.width=5}
+
+p1 <- ggplot() + geom_path(data= SFPD_drugs, aes( group=reorder(Category,Category ,function(x)+length(x)),x = Year), stat ='count', alpha=0.6)
+p2 <- p1 +geom_path(data = SFPD_drugs_subset, aes(group = Type, x=Year, colour=Type), stat = 'count', size=1.01) + theme(legend.position="bottom") + geom_vline(xintercept = 3 , linetype='dashed', alpha=0.5) + annotate("text", x = 4, y = 7500, label = "Drugs Became Cheaper", size=2.5,  color='Blue') + geom_vline(xintercept = 6 , linetype='dashed', alpha=0.5) + annotate("text", x = 7, y = 12000, label = "Recession Hits US", size=2.5,  color='Blue') + geom_vline(xintercept = 9 , linetype='dashed', alpha=0.5) + annotate("text", x = 10, y = 8000, label = "Silk Road Launched", size=2.5,  color='Blue')+ geom_vline(xintercept = 11 , linetype='dashed', alpha=0.5) + annotate("text", x = 12, y = 3000, label = "Shut Down by FBI", size=2.5,  color='Blue')
+
+p2+ ggtitle('Drug / Narcotic Crimes Timeline') 
+ 
+```
+
+```{r, fig.height=10, fig.width=8}
+p1 <- ggplot(SFPD_drugs , aes(x=reorder(PdDistrict, PdDistrict ,function(x)+length(x) ))) +geom_bar(stat='count') + facet_wrap(~Year)  +xlab('District') +  ggtitle('Drug/ Narcotic based Crimes Distribution over Districts') +theme(axis.text.x = element_text(angle = 90, hjust = 1))
+#p1
+p2 <- ggplot(SFPD_drugs_subset , aes(group = Type , x = Year, color = Type)) +geom_path(stat='count')  + facet_wrap(~PdDistrict) + xlab('Year') +  ggtitle('Different drugs over Years and Districts') + theme(legend.position="bottom")+theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+grid.arrange(p1, p2, ncol=1)
+```
+
+
+
+
+```{r, fig.height=5,fig.width=7}
+
+library(ggmap)
+mapSF_zoom <- get_map(location = c(lon=mean(SFPD_drugs$X),lat=mean(SFPD_drugs$Y)), zoom = 15, maptype = "roadmap", scale = 2)
+mapSF <- get_map(location = 'San Francisco', zoom = 13, maptype = "roadmap", scale = 2)
+
+# plotting the map with some points on it
+ggmap(mapSF) + geom_density2d(data = SFPD_drugs, 
+    aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_drugs, 
+    aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 30, geom = "polygon") + scale_fill_viridis(direction=-1) + 
+    scale_alpha(range = c(0.1, 0.4), guide = FALSE) + ggtitle('Drug Related Crime Density')+theme(legend.position="bottom")
+
+ggmap(mapSF_zoom) + geom_density2d(data = SFPD_drugs, 
+    aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_drugs, 
+    aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 30, geom = "polygon") + scale_fill_viridis(direction=-1) + 
+    scale_alpha(range = c(0.1, 0.4), guide = FALSE) + ggtitle('Market Street and Mission Street : Drug Hubs ')
+  
+
+```
+
+```{r,fig.height=8,fig.width=10}
+library(ggmap)
+
+#mapSF_1 <- get_map(location = 'San Francisco', zoom = 13, maptype = "roadmap", scale = 2)
+
+# plotting the map with some points on it
+ggmap(mapSF) + geom_density2d(data = SFPD_drugs_subset, 
+    aes(x = X, y = Y), size = 0.3) + stat_density2d(data = SFPD_drugs, 
+    aes(x = X, y = Y, fill = ..level.., alpha = ..level..), size = 0.01, 
+    bins = 30, geom = "polygon") + scale_fill_viridis(direction=-1) + facet_wrap(~Type)+
+    scale_alpha(range = c(0.1, 0.4), guide = FALSE) + ggtitle('Drug Type Related Crime Density')+theme(legend.position="bottom")
+
+
+```
+
+
+
