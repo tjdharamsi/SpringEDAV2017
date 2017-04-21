@@ -1,6 +1,6 @@
 ---
 title: "Larceny related crime analysis Analysis SFPD"
-author: "Tejas Dharamsi"
+
 output:
   html_notebook: default
   html_document: default
