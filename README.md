@@ -4,7 +4,7 @@
 <h4> Requirements</h4>
 <ol>
 <li> Language/ Software : R version 3.3.3, R studio version 3.3.2 and R Notebook
-<li> Libraries - dplyr, ggplot2, tudyr, RColorBrewer, viridis, ggmap, readr, viridis
+<li> Libraries - dplyr, ggplot2, tudyr, RColorBrewer, viridis, ggmap, readr
 </ol>
 
 <h4>  Explanation of Code Files </h4>
